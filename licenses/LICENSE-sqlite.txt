@@ -1,0 +1,6 @@
+SQLite Amalgamation
+
+SQLite is in the public domain. See https://www.sqlite.org/copyright.html
+
+The authors disclaim copyright to the source code in this amalgamation and
+make it available to anyone for any purpose.

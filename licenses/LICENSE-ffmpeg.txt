@@ -1,0 +1,7 @@
+FFmpeg Third-Party License Notice
+
+This application can invoke FFmpeg as an external tool. FFmpeg is not bundled in
+the source repository. You must supply a licensed FFmpeg binary before release.
+
+Refer to the FFmpeg project license terms at https://ffmpeg.org/legal.html and
+include the corresponding license text for the FFmpeg build you distribute.

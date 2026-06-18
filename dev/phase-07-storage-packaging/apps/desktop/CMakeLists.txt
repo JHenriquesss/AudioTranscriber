@@ -1,0 +1,22 @@
+cmake_minimum_required(VERSION 3.24)
+
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
+add_executable(offline_transcriber_desktop
+    main.cpp
+    MainWindow.cpp
+    DesktopJobController.cpp
+    widgets/TranscriptionPanel.cpp
+    widgets/TranscriptEditor.cpp
+)
+
+target_link_libraries(offline_transcriber_desktop
+    PRIVATE
+        offline_transcriber_app
+        Qt6::Widgets
+        Qt6::Concurrent
+)
+
+set_target_properties(offline_transcriber_desktop PROPERTIES WIN32_EXECUTABLE TRUE)

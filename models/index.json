@@ -1,0 +1,32 @@
+{
+  "models": [
+    {
+      "id": "tiny",
+      "name": "Tiny",
+      "path": "ggml-tiny.bin",
+      "recommended_for": ["low-memory", "quick-preview"],
+      "languages": ["pt", "en", "auto"]
+    },
+    {
+      "id": "base",
+      "name": "Base",
+      "path": "ggml-base.bin",
+      "recommended_for": ["basic-pc"],
+      "languages": ["pt", "en", "auto"]
+    },
+    {
+      "id": "small",
+      "name": "Fast",
+      "path": "ggml-small.bin",
+      "recommended_for": ["basic-pc", "short-audio"],
+      "languages": ["pt", "en", "auto"]
+    },
+    {
+      "id": "medium",
+      "name": "Balanced",
+      "path": "ggml-medium.bin",
+      "recommended_for": ["general-use"],
+      "languages": ["pt", "en", "auto"]
+    }
+  ]
+}

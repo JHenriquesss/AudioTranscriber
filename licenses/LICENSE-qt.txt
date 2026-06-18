@@ -1,0 +1,7 @@
+Qt Third-Party License Notice
+
+This application links against Qt 6. Qt is not bundled in the source repository.
+When distributing the desktop application, include the Qt runtime deployed by
+windeployqt and the applicable Qt license terms for your Qt distribution.
+
+Refer to https://www.qt.io/licensing/
