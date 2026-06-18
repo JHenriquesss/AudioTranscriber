@@ -48,8 +48,8 @@ foreach ($folder in $folders) {
     New-Item -ItemType Directory -Force -Path (Join-Path $packageRoot $folder) | Out-Null
 }
 
-Copy-Item $builtExe (Join-Path $packageRoot "OfflineTranscriber.exe")
-Copy-Item (Join-Path $repoRoot "models/index.json") (Join-Path $packageRoot "models/index.json")
+Copy-Item -LiteralPath $builtExe -Destination (Join-Path $packageRoot "OfflineTranscriber.exe") -Force
+Copy-Item -LiteralPath (Join-Path $repoRoot "models/index.json") -Destination (Join-Path $packageRoot "models/index.json") -Force
 
 if ([string]::IsNullOrWhiteSpace($FfmpegPath) -and -not [string]::IsNullOrWhiteSpace($env:OFFLINE_TRANSCRIBER_FFMPEG_PATH)) {
     $FfmpegPath = $env:OFFLINE_TRANSCRIBER_FFMPEG_PATH
@@ -61,20 +61,52 @@ if ([string]::IsNullOrWhiteSpace($LicensesDir) -and -not [string]::IsNullOrWhite
     $LicensesDir = $env:OFFLINE_TRANSCRIBER_LICENSES_DIR
 }
 
-$sourceFfmpeg = if ([string]::IsNullOrWhiteSpace($FfmpegPath)) {
-    Join-Path $repoRoot "tools/ffmpeg.exe"
-} else {
-    $FfmpegPath
+function Resolve-ExistingPath {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return $null
+    }
+    if (Test-Path $Path) {
+        return (Resolve-Path $Path).Path
+    }
+    return $null
 }
-if (Test-Path $sourceFfmpeg) {
-    Copy-Item $sourceFfmpeg (Join-Path $packageRoot "tools/ffmpeg.exe")
+
+function Resolve-FfmpegSource {
+    param([string]$ExplicitPath, [string]$RepoRoot)
+
+    $candidates = @(
+        (Resolve-ExistingPath $ExplicitPath),
+        (Resolve-ExistingPath $env:OFFLINE_TRANSCRIBER_FFMPEG_PATH),
+        (Resolve-ExistingPath (Join-Path $RepoRoot "tools/ffmpeg.exe"))
+    ) | Where-Object { $_ -ne $null }
+
+    if (@($candidates).Count -gt 0) {
+        return @($candidates)[0]
+    }
+
+    $whereOutput = & where.exe ffmpeg 2>$null
+    if ($LASTEXITCODE -eq 0 -and $whereOutput) {
+        $fromPath = ($whereOutput | Select-Object -First 1).Trim()
+        $resolved = Resolve-ExistingPath $fromPath
+        if ($null -ne $resolved) {
+            return $resolved
+        }
+    }
+
+    return $null
+}
+
+$sourceFfmpeg = Resolve-FfmpegSource -ExplicitPath $FfmpegPath -RepoRoot $repoRoot
+if ($null -ne $sourceFfmpeg) {
+    Copy-Item -LiteralPath $sourceFfmpeg -Destination (Join-Path $packageRoot "tools/ffmpeg.exe") -Force
 } elseif ($AllowPlaceholders) {
     @(
         "FFmpeg is not bundled in this repository snapshot."
         "Place a licensed ffmpeg.exe in tools/ffmpeg.exe before shipping."
     ) | Set-Content -Path (Join-Path $packageRoot "tools/ffmpeg.exe.placeholder.txt") -Encoding UTF8
 } else {
-    throw "Missing tools/ffmpeg.exe. Use -AllowPlaceholders only for layout-only development packages."
+    throw "Missing FFmpeg executable. Run tools/setup-runtime-artifacts.ps1 or set OFFLINE_TRANSCRIBER_FFMPEG_PATH."
 }
 
 $defaultModel = if ([string]::IsNullOrWhiteSpace($ModelPath)) {
@@ -82,8 +114,8 @@ $defaultModel = if ([string]::IsNullOrWhiteSpace($ModelPath)) {
 } else {
     $ModelPath
 }
-if (Test-Path $defaultModel) {
-    Copy-Item $defaultModel (Join-Path $packageRoot "models/ggml-small.bin")
+if (Test-Path -LiteralPath $defaultModel) {
+    Copy-Item -LiteralPath $defaultModel -Destination (Join-Path $packageRoot "models/ggml-small.bin") -Force
 } elseif ($AllowPlaceholders) {
     @(
         "Default Whisper model is not bundled in this repository snapshot."
@@ -108,7 +140,7 @@ foreach ($licenseFile in $licenseFiles) {
     }
     $source = Join-Path $licenseRoot $licenseFile
     if (Test-Path $source) {
-        Copy-Item $source (Join-Path $packageRoot "licenses/$licenseFile")
+        Copy-Item -LiteralPath $source -Destination (Join-Path $packageRoot "licenses/$licenseFile") -Force
     } else {
         if ($AllowPlaceholders) {
             @(

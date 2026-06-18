@@ -1,7 +1,10 @@
 # Release Runtime Artifacts
 
-Runtime binaries are intentionally excluded from git. Provide them locally or via
-environment variables before running strict packaging.
+Runtime binaries are intentionally excluded from git. Provide them locally or run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/setup-runtime-artifacts.ps1
+```
 
 ## Required for strict release packaging
 
@@ -14,6 +17,9 @@ environment variables before running strict packaging.
 ## Commands
 
 ```powershell
+# One-shot local release CI (artifacts + build + tests + strict package + verify)
+powershell -ExecutionPolicy Bypass -File tools/run-release-ci.ps1
+
 # Layout-only development package (placeholders allowed)
 powershell -ExecutionPolicy Bypass -File tools/package-windows.ps1 -AllowPlaceholders
 

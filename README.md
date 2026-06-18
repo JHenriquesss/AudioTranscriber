@@ -15,9 +15,10 @@ Offline-first Windows desktop transcription app built with C++20, Qt 6 Widgets, 
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/bootstrap-third-party.ps1
+powershell -ExecutionPolicy Bypass -File tools/setup-runtime-artifacts.ps1
 ```
 
-This vendors SQLite (committed), Catch2, and whisper.cpp (downloaded locally, not committed).
+`setup-runtime-artifacts.ps1` copies FFmpeg from PATH into `tools/ffmpeg.exe` and downloads verified Whisper models into `models/`.
 
 ## Build and test
 
