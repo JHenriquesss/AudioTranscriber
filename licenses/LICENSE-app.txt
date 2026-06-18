@@ -1,0 +1,9 @@
+Offline Transcriber Application License
+
+Copyright (c) 2026 Offline Transcriber Project
+
+Permission is hereby granted to use, copy, modify, and distribute this application
+for personal and internal business use, subject to the third-party licenses bundled
+in the licenses/ directory.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
