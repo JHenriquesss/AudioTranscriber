@@ -1,5 +1,7 @@
 #include "AppSettings.hpp"
 
+#include "JobRequestPaths.hpp"
+
 #include <fstream>
 #include <optional>
 #include <sstream>
@@ -228,6 +230,7 @@ shared::Result<AppSettings> AppSettingsStore::load() const {
         settings.theme = *theme;
     }
 
+    settings.outputDirectory = resolveJobOutputDirectory(settings.outputDirectory, paths_);
     return validateSettings(settings);
 }
 
@@ -259,7 +262,8 @@ shared::Result<void> AppSettingsStore::save(const AppSettings &settings) const {
 shared::Result<AppSettings> AppSettingsStore::loadOrCreateDefaults() {
     const auto settingsPath = paths_.settingsFile();
     if (!std::filesystem::exists(settingsPath)) {
-        const auto defaults = AppSettingsStore::defaults();
+        auto defaults = AppSettingsStore::defaults();
+        defaults.outputDirectory = paths_.exportsDirectory();
         const auto saved = save(defaults);
         if (!saved.ok) {
             return shared::Result<AppSettings>::failure(saved.error);

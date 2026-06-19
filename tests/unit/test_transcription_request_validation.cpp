@@ -77,3 +77,28 @@ TEST_CASE("validateTranscriptionJobRequest rejects empty model", "[app][request-
     REQUIRE_FALSE(result.ok);
     REQUIRE(result.error.code == shared::ErrorCode::ConfigurationError);
 }
+
+#if defined(_WIN32)
+TEST_CASE("validateTranscriptionJobRequest accepts unicode input path",
+          "[app][request-validation][unicode]") {
+    const auto path = std::filesystem::temp_directory_path() / L"tr\u00e1s_ordena\u00e7\u00e3o.m4a";
+    {
+        std::ofstream stream(path, std::ios::binary);
+        stream << "fake";
+    }
+
+    app::TranscriptionJobRequest request;
+    request.inputFile = path;
+    request.outputDirectory = std::filesystem::temp_directory_path() / L"tr\u00e1s_output";
+    std::filesystem::create_directories(request.outputDirectory);
+    request.language = "pt";
+    request.modelId = "small";
+
+    const auto result = app::validateTranscriptionJobRequest(request);
+    REQUIRE(result.ok);
+
+    std::error_code cleanupError;
+    std::filesystem::remove(path, cleanupError);
+    std::filesystem::remove_all(request.outputDirectory, cleanupError);
+}
+#endif

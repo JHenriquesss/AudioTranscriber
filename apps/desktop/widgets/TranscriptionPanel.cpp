@@ -1,5 +1,6 @@
 #include "TranscriptionPanel.hpp"
 
+#include "QtPath.hpp"
 #include "app/ModelCatalog.hpp"
 
 #include <QFormLayout>
@@ -74,8 +75,8 @@ TranscriptionPanel::TranscriptionPanel(QWidget *parent) : QWidget(parent) {
 
 app::TranscriptionJobRequest TranscriptionPanel::buildRequest() const {
     app::TranscriptionJobRequest request;
-    request.inputFile = inputFileEdit_->text().toStdString();
-    request.outputDirectory = outputDirectoryEdit_->text().toStdString();
+    request.inputFile = desktop::toFilesystemPath(inputFileEdit_->text());
+    request.outputDirectory = desktop::toFilesystemPath(outputDirectoryEdit_->text());
     request.language = languageCombo_->currentData().toString().toStdString();
     request.modelId = modelCombo_->currentData().toString().toStdString();
     return request;

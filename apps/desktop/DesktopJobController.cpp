@@ -1,6 +1,8 @@
 #include "DesktopJobController.hpp"
 
+#include "QtPath.hpp"
 #include "app/AppPaths.hpp"
+#include "app/JobRequestPaths.hpp"
 
 #include <QMetaObject>
 #include <QPointer>
@@ -49,7 +51,15 @@ void DesktopJobController::startJob(const app::TranscriptionJobRequest &request)
         return;
     }
 
-    const auto submission = jobManager().submitJob(request);
+    const auto normalized = app::normalizeJobRequest(request, paths_);
+    const auto outputReady = app::ensureDirectoryExists(normalized.outputDirectory);
+    if (!outputReady.ok) {
+        emit validationFailed(QString::fromStdString(outputReady.error.message),
+                              QString::fromStdString(shared::to_string(outputReady.error.code)));
+        return;
+    }
+
+    const auto submission = jobManager().submitJob(normalized);
     if (!submission.ok) {
         emit validationFailed(QString::fromStdString(submission.error.message),
                               QString::fromStdString(shared::to_string(submission.error.code)));
@@ -142,10 +152,19 @@ void DesktopJobController::onWorkerFinished(bool success) {
     }
 
     QString transcriptText;
+    QString exportMessage;
     if (job.has_value()) {
         transcriptText = QString::fromStdString(job->transcriptPlainText());
+        const auto baseName = app::exportBaseNameForInputFile(job->request().inputFile);
+        exportMessage =
+            QStringLiteral("Transcript exported to %1/%2 (.txt, .srt, .vtt, .json)")
+                .arg(desktop::fromFilesystemPath(job->request().outputDirectory),
+                     QString::fromUtf8(baseName.c_str()));
     }
     emit jobCompleted(jobId, transcriptText);
+    if (!exportMessage.isEmpty()) {
+        emit exportSucceeded(exportMessage);
+    }
     resetWorkerState();
 }
 

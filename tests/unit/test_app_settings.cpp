@@ -28,6 +28,7 @@ TEST_CASE("AppSettingsStore creates defaults when settings file is missing", "[a
     REQUIRE(loaded.value.maxParallelJobs == 1);
     REQUIRE(loaded.value.enableWordTimestamps);
     REQUIRE(loaded.value.theme == "system");
+    REQUIRE(loaded.value.outputDirectory == std::filesystem::absolute(root / "exports"));
     REQUIRE(std::filesystem::exists(root / "data" / "settings.json"));
 
     std::filesystem::remove_all(root);
@@ -73,7 +74,8 @@ TEST_CASE("AppSettingsStore round-trips valid settings", "[app][settings]") {
     REQUIRE(loaded.ok);
     REQUIRE(loaded.value.defaultLanguage == "pt");
     REQUIRE(loaded.value.defaultModel == "medium");
-    REQUIRE(loaded.value.outputDirectory == "custom-exports");
+    REQUIRE(loaded.value.outputDirectory ==
+            std::filesystem::absolute(root / "custom-exports"));
     REQUIRE(loaded.value.maxParallelJobs == 2);
     REQUIRE(loaded.value.theme == "dark");
 

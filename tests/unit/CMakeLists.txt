@@ -12,6 +12,7 @@ add_executable(phase07_unit_tests
     test_export_service.cpp
     test_app_paths.cpp
     test_app_settings.cpp
+    test_job_request_paths.cpp
     test_job_status.cpp
     test_transcription_job.cpp
     test_transcription_request_validation.cpp
