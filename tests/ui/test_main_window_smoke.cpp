@@ -1,8 +1,10 @@
 #include "MainWindow.hpp"
 #include "DesktopJobController.hpp"
+#include "QtPath.hpp"
 #include "AudioTestHelpers.hpp"
 #include "FakeWhisperEngine.hpp"
 #include "app/JobManager.hpp"
+#include "app/JobRequestPaths.hpp"
 #include "widgets/TranscriptionPanel.hpp"
 #include "widgets/TranscriptEditor.hpp"
 
@@ -48,6 +50,8 @@ class MainWindowSmokeTest : public QObject {
     void mainWindowShowsCoreControls();
     void startWithoutInputShowsValidationError();
     void fakeJobUpdatesProgressAndTranscript();
+    void pipelineAutoExportsAllFormatsWithUnicodeFilename();
+    void mainWindowWorkflowCompletesAndExports();
 };
 
 void MainWindowSmokeTest::mainWindowShowsCoreControls() {
@@ -102,19 +106,120 @@ void MainWindowSmokeTest::fakeJobUpdatesProgressAndTranscript() {
     DesktopJobController controller(workspace);
     QSignalSpy completedSpy(&controller, &DesktopJobController::jobCompleted);
     QSignalSpy progressSpy(&controller, &DesktopJobController::progressUpdated);
+    QSignalSpy exportSpy(&controller, &DesktopJobController::exportSucceeded);
 
     app::TranscriptionJobRequest request;
     request.inputFile = input;
-    request.outputDirectory = output;
+    request.outputDirectory = "exports";
     request.language = "pt";
     request.modelId = "small";
     controller.startJob(request);
 
     QTRY_COMPARE_WITH_TIMEOUT(completedSpy.count(), 1, 20000);
+    QTRY_COMPARE_WITH_TIMEOUT(exportSpy.count(), 1, 20000);
     QVERIFY(progressSpy.count() > 0);
     QVERIFY(!completedSpy.at(0).at(1).toString().isEmpty());
+    QVERIFY(std::filesystem::exists(output / "phase07-main-window-smoke-input.txt"));
+    QVERIFY(std::filesystem::exists(output / "phase07-main-window-smoke-input.srt"));
 
     app::JobManager::clearTestWhisperEngineSupplier();
+
+    std::error_code cleanupError;
+    std::filesystem::remove_all(workspace, cleanupError);
+}
+
+void MainWindowSmokeTest::pipelineAutoExportsAllFormatsWithUnicodeFilename() {
+    app::JobManager::setTestWhisperEngineSupplier([]() {
+        return whisper_engine::WhisperEngine(std::make_unique<test_support::FakeWhisperEngine>());
+    });
+
+    const auto stamp = std::chrono::steady_clock::now().time_since_epoch().count();
+    const auto workspace = std::filesystem::temp_directory_path() /
+                           ("phase08-ui-export-workspace-" + std::to_string(stamp));
+    prepareRuntimeFiles(workspace);
+    std::filesystem::create_directories(workspace / "exports");
+
+#if defined(_WIN32)
+    const auto input = workspace / L"r_tr\u00e1s_da_ordena\u00e7\u00e3o_eficiente.wav";
+#else
+    const auto input = workspace / "r_trás_da_ordenação_eficiente.wav";
+#endif
+    audio_test::writePcmMonoWav(input, 16000, std::vector<std::int16_t>(1600, 0));
+
+    DesktopJobController controller(workspace);
+    QSignalSpy completedSpy(&controller, &DesktopJobController::jobCompleted);
+    QSignalSpy exportSpy(&controller, &DesktopJobController::exportSucceeded);
+
+    app::TranscriptionJobRequest request;
+    request.inputFile = input;
+    request.outputDirectory = "exports";
+    request.language = "pt";
+    request.modelId = "small";
+    controller.startJob(request);
+
+    QTRY_COMPARE_WITH_TIMEOUT(completedSpy.count(), 1, 20000);
+    QTRY_COMPARE_WITH_TIMEOUT(exportSpy.count(), 1, 20000);
+
+    const auto outputDirectory = std::filesystem::absolute(workspace / "exports");
+    const auto baseName = app::exportBaseNameForInputFile(input);
+    QVERIFY(std::filesystem::exists(outputDirectory / (baseName + ".txt")));
+    QVERIFY(std::filesystem::exists(outputDirectory / (baseName + ".srt")));
+    QVERIFY(std::filesystem::exists(outputDirectory / (baseName + ".vtt")));
+    QVERIFY(std::filesystem::exists(outputDirectory / (baseName + ".json")));
+
+    app::JobManager::clearTestWhisperEngineSupplier();
+
+    std::error_code cleanupError;
+    std::filesystem::remove_all(workspace, cleanupError);
+}
+
+void MainWindowSmokeTest::mainWindowWorkflowCompletesAndExports() {
+    app::JobManager::setTestWhisperEngineSupplier([]() {
+        return whisper_engine::WhisperEngine(std::make_unique<test_support::FakeWhisperEngine>());
+    });
+
+    const auto stamp = std::chrono::steady_clock::now().time_since_epoch().count();
+    const auto workspace = std::filesystem::temp_directory_path() /
+                           ("phase08-ui-main-window-workflow-" + std::to_string(stamp));
+    prepareRuntimeFiles(workspace);
+    std::filesystem::create_directories(workspace / "data");
+    std::filesystem::create_directories(workspace / "exports");
+
+    const auto input = writeSmokeInputFile();
+    qputenv("OFFLINE_TRANSCRIBER_APP_ROOT", QByteArray::fromStdString(workspace.string()));
+
+    MainWindow window;
+    const auto panels = window.findChildren<TranscriptionPanel *>();
+    QVERIFY(!panels.isEmpty());
+    TranscriptionPanel *panel = panels.first();
+
+    panel->setInputFile(desktop::fromFilesystemPath(input));
+    panel->setOutputDirectory(QStringLiteral("exports"));
+
+    QSignalSpy completedSpy(window.findChild<DesktopJobController *>(),
+                            &DesktopJobController::jobCompleted);
+    QSignalSpy exportSpy(window.findChild<DesktopJobController *>(),
+                         &DesktopJobController::exportSucceeded);
+
+    const auto startButtons = window.findChildren<QPushButton *>();
+    QPushButton *startButton = nullptr;
+    for (QPushButton *button : startButtons) {
+        if (button->text() == QStringLiteral("Start")) {
+            startButton = button;
+            break;
+        }
+    }
+    QVERIFY(startButton != nullptr);
+    QTest::mouseClick(startButton, Qt::LeftButton);
+
+    QTRY_COMPARE_WITH_TIMEOUT(completedSpy.count(), 1, 20000);
+    QTRY_COMPARE_WITH_TIMEOUT(exportSpy.count(), 1, 20000);
+
+    const auto outputDirectory = std::filesystem::absolute(workspace / "exports");
+    QVERIFY(std::filesystem::exists(outputDirectory / "phase07-main-window-smoke-input.txt"));
+
+    app::JobManager::clearTestWhisperEngineSupplier();
+    qunsetenv("OFFLINE_TRANSCRIBER_APP_ROOT");
 
     std::error_code cleanupError;
     std::filesystem::remove_all(workspace, cleanupError);

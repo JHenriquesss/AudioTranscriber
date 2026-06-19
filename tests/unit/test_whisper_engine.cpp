@@ -69,7 +69,7 @@ TEST_CASE("WhisperEngine integration transcribes real model when configured",
 
     const auto workspace = createWorkspace("phase08-whisper-integration");
     const auto wavPath = workspace / "normalized.wav";
-    audio_test::writePcmMonoWav(wavPath, 16000, std::vector<std::int16_t>(16000, 0));
+    audio_test::writePcmMonoWav(wavPath, 16000, std::vector<std::int16_t>(32000, 0));
 
     whisper_engine::WhisperEngine engine;
     shared::CancellationToken token;

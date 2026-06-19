@@ -1,6 +1,7 @@
 #include "MainWindow.hpp"
 
 #include "DesktopJobController.hpp"
+#include "QtPath.hpp"
 #include "app/AppPaths.hpp"
 #include "app/AppSettings.hpp"
 #include "app/ModelCatalog.hpp"
@@ -15,7 +16,19 @@
 #include <QStatusBar>
 #include <QWidget>
 
+#include <cstdlib>
 #include <filesystem>
+
+namespace {
+
+std::filesystem::path resolveApplicationRoot() {
+    if (const char *overrideRoot = std::getenv("OFFLINE_TRANSCRIBER_APP_ROOT")) {
+        return std::filesystem::path(overrideRoot);
+    }
+    return std::filesystem::path(QCoreApplication::applicationDirPath().toStdWString());
+}
+
+} // namespace
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setWindowTitle(QStringLiteral("Offline Transcriber"));
@@ -23,8 +36,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     transcriptionPanel_ = new TranscriptionPanel(this);
     transcriptEditor_ = new TranscriptEditor(this);
-    const auto applicationRoot =
-        std::filesystem::path(QCoreApplication::applicationDirPath().toStdWString());
+    const auto applicationRoot = resolveApplicationRoot();
     jobController_ = new DesktopJobController(applicationRoot, this);
 
     auto *splitter = new QSplitter(Qt::Horizontal, this);
@@ -92,7 +104,6 @@ void MainWindow::onJobCompleted(const QString &jobId, const QString &transcriptT
     transcriptionPanel_->setBusy(false);
     transcriptEditor_->setTranscriptText(transcriptText);
     transcriptEditor_->setExportEnabled(true);
-    statusBar()->showMessage(QStringLiteral("Transcription completed"), 5000);
 }
 
 void MainWindow::onJobFailed(const QString &jobId, const QString &message, const QString &errorCode) {
@@ -102,7 +113,7 @@ void MainWindow::onJobFailed(const QString &jobId, const QString &message, const
 }
 
 void MainWindow::onExportSucceeded(const QString &message) {
-    statusBar()->showMessage(message, 5000);
+    statusBar()->showMessage(message, 8000);
 }
 
 void MainWindow::onExportFailed(const QString &message, const QString &errorCode) {
@@ -128,17 +139,15 @@ void MainWindow::wireSignals() {
 }
 
 void MainWindow::applyDefaultPaths() {
-    const auto applicationRoot =
-        std::filesystem::path(QCoreApplication::applicationDirPath().toStdWString());
-    const auto paths = app::AppPaths::resolve(applicationRoot);
+    const auto paths = app::AppPaths::resolve(resolveApplicationRoot());
     app::AppSettingsStore settingsStore(paths);
     const auto settings = settingsStore.loadOrCreateDefaults();
     if (settings.ok) {
         transcriptionPanel_->setOutputDirectory(
-            QString::fromStdString(settings.value.outputDirectory.string()));
+            desktop::fromFilesystemPath(settings.value.outputDirectory));
     } else {
         transcriptionPanel_->setOutputDirectory(
-            QString::fromStdString(paths.exportsDirectory().string()));
+            desktop::fromFilesystemPath(paths.exportsDirectory()));
     }
 
     auto catalog = app::ModelCatalog::load(paths);

@@ -25,4 +25,8 @@ target_link_libraries(offline_transcriber_desktop
         Qt6::Concurrent
 )
 
+target_include_directories(offline_transcriber_desktop PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 set_target_properties(offline_transcriber_desktop PROPERTIES WIN32_EXECUTABLE TRUE)

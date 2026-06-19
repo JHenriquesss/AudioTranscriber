@@ -53,3 +53,28 @@ TEST_CASE("JobHistoryCoordinator persists completed job metadata and transcript 
 
     test_support::cleanupTempRoot(root);
 }
+
+TEST_CASE("JobManager resumes job id sequence after app restart", "[app][history]") {
+    const auto root = test_support::uniqueTempRoot("phase07-job-id-sequence");
+    std::filesystem::create_directories(root / "data");
+    const auto paths = app::AppPaths::fromUserDataRoot(root, true);
+
+    auto historyResult = app::initializeJobHistory(paths);
+    REQUIRE(historyResult.ok);
+
+  {
+    app::JobManager manager(historyResult.value.get());
+    const auto firstSubmission = manager.submitJob(sampleRequest(root));
+    REQUIRE(firstSubmission.ok);
+    REQUIRE(firstSubmission.value == "job_1");
+  }
+
+  {
+    app::JobManager restartedManager(historyResult.value.get());
+    const auto secondSubmission = restartedManager.submitJob(sampleRequest(root));
+    REQUIRE(secondSubmission.ok);
+    REQUIRE(secondSubmission.value == "job_2");
+  }
+
+    test_support::cleanupTempRoot(root);
+}

@@ -72,7 +72,10 @@ std::filesystem::path AppPaths::logsDirectory() const {
 }
 
 std::filesystem::path AppPaths::exportsDirectory() const {
-    return dataDirectory() / kExportsFolder;
+    if (portableMode_) {
+        return applicationRoot / kExportsFolder;
+    }
+    return userDataRoot_ / kExportsFolder;
 }
 
 std::filesystem::path AppPaths::tempDirectory() const {

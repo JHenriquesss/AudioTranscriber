@@ -1,6 +1,7 @@
 #include "JobManager.hpp"
 
 #include "JobHistoryCoordinator.hpp"
+#include "JobRequestPaths.hpp"
 #include "TranscriptionRequestValidation.hpp"
 
 #include "audio/AudioNormalizer.hpp"
@@ -13,6 +14,7 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <string_view>
 
 namespace app {
 
@@ -66,7 +68,34 @@ const char *statusCompletionLogEvent(JobStatus status) {
 
 JobManager::JobManager() = default;
 
-JobManager::JobManager(JobHistoryCoordinator *history) : history_(history) {}
+JobManager::JobManager(JobHistoryCoordinator *history) : history_(history) {
+    if (history_ == nullptr) {
+        return;
+    }
+
+    const auto existingJobs = history_->jobs().listJobs();
+    if (!existingJobs.ok) {
+        return;
+    }
+
+    constexpr std::string_view kJobIdPrefix = "job_";
+    int maxJobNumber = 0;
+    for (const storage::JobRecord &record : existingJobs.value) {
+        if (record.id.size() <= kJobIdPrefix.size() ||
+            record.id.compare(0, kJobIdPrefix.size(), kJobIdPrefix) != 0) {
+            continue;
+        }
+
+        try {
+            const int jobNumber = std::stoi(record.id.substr(kJobIdPrefix.size()));
+            maxJobNumber = std::max(maxJobNumber, jobNumber);
+        } catch (const std::exception &) {
+            continue;
+        }
+    }
+
+    nextJobNumber_ = maxJobNumber + 1;
+}
 
 void JobManager::setTestWhisperEngineSupplier(
     std::function<whisper_engine::WhisperEngine()> supplier) {
@@ -408,7 +437,7 @@ shared::Result<void> JobManager::exportJobResults(const std::string &jobId) {
 
     export_format::ExportRequest request;
     request.outputDirectory = job->request().outputDirectory;
-    request.baseName = job->request().inputFile.stem().string();
+    request.baseName = exportBaseNameForInputFile(job->request().inputFile);
     if (job->request().exportTxt) {
         request.formats.push_back(export_format::ExportFormat::Txt);
     }
@@ -428,6 +457,11 @@ shared::Result<void> JobManager::exportJobResults(const std::string &jobId) {
             "No export formats were selected.",
             jobId,
         });
+    }
+
+    const auto outputReady = ensureDirectoryExists(request.outputDirectory);
+    if (!outputReady.ok) {
+        return outputReady;
     }
 
     const auto exportResult = exportService_.exportTranscript(*transcript, request);

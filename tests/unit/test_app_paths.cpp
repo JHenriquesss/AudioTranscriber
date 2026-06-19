@@ -24,7 +24,7 @@ TEST_CASE("AppPaths uses portable layout when data directory exists", "[app][pat
     REQUIRE(paths.isPortableMode());
     REQUIRE(paths.settingsFile() == root / "data" / "settings.json");
     REQUIRE(paths.logsDirectory() == root / "data" / "logs");
-    REQUIRE(paths.exportsDirectory() == root / "data" / "exports");
+    REQUIRE(paths.exportsDirectory() == root / "exports");
 
     std::filesystem::remove_all(root);
 }

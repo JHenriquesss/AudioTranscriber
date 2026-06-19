@@ -112,6 +112,7 @@ add_library(offline_transcriber_app STATIC
     src/app/JobStatus.cpp
     src/app/TranscriptionJob.cpp
     src/app/TranscriptionRequestValidation.cpp
+    src/app/JobRequestPaths.cpp
     src/app/JobManager.cpp
     src/app/JobHistoryCoordinator.cpp
     src/app/ModelCatalog.cpp
